@@ -52,7 +52,7 @@ abstract class OAuth1Provider(
    * @param request The request header.
    * @return Either a Result or the auth info from the provider.
    */
-  protected def doAuth()(implicit request: RequestHeader): Future[Either[Result, OAuth1Info]] = {
+  protected def doAuth(state: String)(implicit request: RequestHeader): Future[Either[Result, (OAuth1Info, String)]] = {
     logger.debug("[Silhouette][%s] Query string: %s".format(id, request.rawQueryString))
     request.queryString.get(Denied) match {
       case Some(_) => Future.failed(new AccessDeniedException(AuthorizationError.format(id, Denied)))
@@ -63,7 +63,7 @@ abstract class OAuth1Provider(
           case (cacheID, cachedInfo) =>
             service.retrieveAccessToken(cachedInfo, seq.head).map { info =>
               cacheLayer.remove(cacheID)
-              Right(info)
+              Right((info, "state, fixme"))
             }.recover {
               case e => throw new AuthenticationException(ErrorAccessToken.format(id), e)
             }

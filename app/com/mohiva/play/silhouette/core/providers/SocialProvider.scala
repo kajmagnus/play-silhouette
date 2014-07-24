@@ -42,12 +42,17 @@ trait SocialProvider[A <: AuthInfo] extends Provider with SocialProfileBuilder[A
    * @param request The request header.
    * @return On success either the social profile or a simple result, otherwise a failure.
    */
-  def authenticate()(implicit request: RequestHeader): Future[Either[Result, Profile]] = {
-    doAuth().flatMap(_.fold(
-      result => Future.successful(Left(result)),
-      authInfo => buildProfile(authInfo).map(profile => Right(profile)).recoverWith {
-        case e if !e.isInstanceOf[AuthenticationException] =>
-          Future.failed(new AuthenticationException(UnspecifiedProfileError.format(id), e))
+  def authenticate(state: String = "")(implicit request: RequestHeader): Future[AuthenticationResult] = {
+    doAuth(state).flatMap(_.fold(
+      result =>
+        Future.successful(AuthenticationOngoing(result)),
+      authInfoAndState => {
+        val authInfo = authInfoAndState._1
+        val stateAfter = authInfoAndState._2
+        buildProfile(authInfo).map(profile => AuthenticationCompleted(profile, stateAfter)).recoverWith {
+          case e if !e.isInstanceOf[AuthenticationException] =>
+            Future.failed(new AuthenticationException(UnspecifiedProfileError.format(id), e))
+        }
       }
     ))
   }
@@ -60,7 +65,8 @@ trait SocialProvider[A <: AuthInfo] extends Provider with SocialProfileBuilder[A
    * @param request The request header.
    * @return Either a Result or the auth info from the provider.
    */
-  protected def doAuth()(implicit request: RequestHeader): Future[Either[Result, A]]
+  protected def doAuth(state: String)(implicit request: RequestHeader): Future[Either[Result, (A, String)]]
+
 }
 
 /**
@@ -86,6 +92,16 @@ trait SocialProfile[A <: AuthInfo] {
 }
 
 /**
+ * The result of a request to Provider.authenticate().
+ */
+sealed abstract class AuthenticationResult
+
+/**
+ * Wraps a redirect response in the authentication flow.
+ */
+case class AuthenticationOngoing(result: Result) extends AuthenticationResult
+
+/**
  * Builds the social profile.
  *
  * @tparam A The type of the auth info.
@@ -97,6 +113,11 @@ trait SocialProfileBuilder[A <: AuthInfo] {
    * The type of the profile.
    */
   type Profile <: SocialProfile[A]
+
+  /**
+   * Means the authentication has been completed, the user's profile is available.
+   */
+  case class AuthenticationCompleted(profile: Profile, state: String) extends AuthenticationResult
 
   /**
    * The Json parser signature.

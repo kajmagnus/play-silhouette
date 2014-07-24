@@ -86,7 +86,7 @@ abstract class OAuth2Provider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, sett
    * @param request The request header.
    * @return Either a Result or the auth info from the provider.
    */
-  protected def doAuth()(implicit request: RequestHeader): Future[Either[Result, OAuth2Info]] = {
+  protected def doAuth(state: String)(implicit request: RequestHeader): Future[Either[Result, (OAuth2Info, String)]] = {
     logger.debug("[Silhouette][%s] Query string: %s".format(id, request.rawQueryString))
     request.queryString.get(Error).flatMap(_.headOption).map {
       case e @ AccessDenied => new AccessDeniedException(AuthorizationError.format(id, e))
@@ -95,27 +95,24 @@ abstract class OAuth2Provider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, sett
       case Some(throwable) => Future.failed(throwable)
       case None => request.queryString.get(Code).flatMap(_.headOption) match {
         // We're being redirected back from the authorization server with the access code
-        case Some(code) => cachedState.map { case (cacheID, cachedState) => cachedState == requestState.get }.flatMap {
-          case false => throw new AuthenticationException(StateIsNotEqual.format(id))
-          case true => getAccessToken(code).map(oauth2Info => Right(oauth2Info))
-        }
+        case Some(code) =>
+          val state = StateSigner.checkSignedState(settings.applicationSecret, requestState.get)
+          getAccessToken(code).map(oauth2Info => Right((oauth2Info, state)))
         // There's no code in the request, this is the first step in the OAuth flow
         case None =>
-          val state = UUID.randomUUID().toString
-          val cacheID = request.session.get(CacheKey).getOrElse(UUID.randomUUID().toString)
+          val signedState = StateSigner.signState(settings.applicationSecret, state = state)
           val params = settings.scope.foldLeft(List(
             (ClientID, settings.clientID),
             (RedirectURI, settings.redirectURL),
             (ResponseType, Code),
-            (State, state)) ++ settings.authorizationParams.toList) {
+            (State, signedState)) ++ settings.authorizationParams.toList) {
             case (p, s) => (Scope, s) :: p
           }
           val encodedParams = params.map { p => encode(p._1, "UTF-8") + "=" + encode(p._2, "UTF-8") }
           val url = settings.authorizationURL + encodedParams.mkString("?", "&", "")
-          val redirect = Results.Redirect(url).withSession(request.session + (CacheKey -> cacheID))
+          val redirect = Results.Redirect(url)
           logger.debug("[Silhouette][%s] Use authorization URL: %s".format(id, settings.authorizationURL))
           logger.debug("[Silhouette][%s] Redirecting to: %s".format(id, url))
-          cacheLayer.set(cacheID, state, CacheExpiration)
           Future.successful(Left(redirect))
       }
     }
@@ -150,22 +147,6 @@ abstract class OAuth2Provider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, sett
       error => Failure(new AuthenticationException(InvalidResponseFormat.format(id, error))),
       info => Success(info)
     )
-  }
-
-  /**
-   * Gets the cached state if it's stored in cache.
-   *
-   * @param request The request header.
-   * @return A tuple contains the cache ID with the cached state on success, otherwise an failure.
-   */
-  private def cachedState(implicit request: RequestHeader): Future[(String, String)] = {
-    request.session.get(CacheKey) match {
-      case Some(cacheID) => cacheLayer.get[String](cacheID).map {
-        case Some(state) => cacheID -> state
-        case _ => throw new AuthenticationException(CachedStateDoesNotExists.format(id, cacheID))
-      }
-      case _ => Future.failed(new AuthenticationException(CacheKeyNotInSession.format(id, CacheKey)))
-    }
   }
 
   /**
@@ -228,6 +209,7 @@ object OAuth2Provider {
 /**
  * The OAuth2 settings.
  *
+ * @param applicationSecret Your Play Framework apps' application.secret config value.
  * @param authorizationURL The authorization URL.
  * @param accessTokenURL The access token URL.
  * @param redirectURL The redirect URL.
@@ -239,6 +221,7 @@ object OAuth2Provider {
  * @param customProperties A map of custom properties for the different providers.
  */
 case class OAuth2Settings(
+  applicationSecret: String,
   authorizationURL: String,
   accessTokenURL: String,
   redirectURL: String,
