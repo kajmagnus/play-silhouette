@@ -60,10 +60,12 @@ abstract class OAuth1Provider(
         // Second step in the OAuth flow.
         // We have the request info in the cache, and we need to swap it for the access info.
         case Some(seq) => cachedInfo.flatMap {
-          case (cacheID, cachedInfo) =>
+          case (cacheID, cachedInfoAndState) =>
+            val cachedInfo = cachedInfoAndState._1
+            val cachedState = cachedInfoAndState._2
             service.retrieveAccessToken(cachedInfo, seq.head).map { info =>
               cacheLayer.remove(cacheID)
-              Right((info, "state, fixme"))
+              Right((info, cachedState))
             }.recover {
               case e => throw new AuthenticationException(ErrorAccessToken.format(id), e)
             }
@@ -75,7 +77,7 @@ abstract class OAuth1Provider(
           val url = service.redirectUrl(info.token)
           val redirect = Results.Redirect(url).withSession(request.session + (CacheKey -> cacheID))
           logger.debug("[Silhouette][%s] Redirecting to: %s".format(id, url))
-          cacheLayer.set(cacheID, info, CacheExpiration)
+          cacheLayer.set(cacheID, (info, state), CacheExpiration)
           Left(redirect)
         }.recover {
           case e => throw new AuthenticationException(ErrorRequestToken.format(id), e)
@@ -85,15 +87,15 @@ abstract class OAuth1Provider(
   }
 
   /**
-   * Gets the cached info if it's stored in cache.
+   * Gets the cached info and state (e.g. a return-to-URL) if it's stored in cache.
    *
    * @param request The request header.
-   * @return A tuple contains the cache ID with the cached info.
+   * @return A tuple contains the cache ID with the cached info and state.
    */
-  private def cachedInfo(implicit request: RequestHeader): Future[(String, OAuth1Info)] = {
+  private def cachedInfo(implicit request: RequestHeader): Future[(String, (OAuth1Info, String))] = {
     request.session.get(CacheKey) match {
-      case Some(cacheID) => cacheLayer.get[OAuth1Info](cacheID).map {
-        case Some(state) => cacheID -> state
+      case Some(cacheID) => cacheLayer.get[(OAuth1Info, String)](cacheID).map {
+        case Some(cacheInfoAndState) => cacheID -> cacheInfoAndState
         case _ => throw new AuthenticationException(CachedTokenDoesNotExists.format(id, cacheID))
       }
       case _ => Future.failed(new AuthenticationException(CacheKeyNotInSession.format(id, CacheKey)))
