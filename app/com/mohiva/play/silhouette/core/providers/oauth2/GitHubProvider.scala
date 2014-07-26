@@ -32,14 +32,14 @@ import GitHubProvider._
 /**
  * A GitHub OAuth2 Provider.
  *
- * @param cacheLayer The cache layer implementation.
+ * @param applicationSecret The value of your Play app's application.secret config value
  * @param httpLayer The HTTP layer implementation.
  * @param settings The provider settings.
  *
  * @see https://developer.github.com/v3/oauth/
  */
-abstract class GitHubProvider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings)
-    extends OAuth2Provider(cacheLayer, httpLayer, settings) {
+abstract class GitHubProvider(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings)
+    extends OAuth2Provider(applicationSecret, httpLayer, settings) {
 
   /**
    * A list with headers to send to the API.
@@ -123,12 +123,12 @@ object GitHubProvider {
   /**
    * Creates an instance of the provider.
    *
-   * @param cacheLayer The cache layer implementation.
+   * @param applicationSecret The value of your Play app's application.secret config value
    * @param httpLayer The HTTP layer implementation.
    * @param settings The provider settings.
    * @return An instance of this provider.
    */
-  def apply(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
-    new GitHubProvider(cacheLayer, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
+  def apply(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
+    new GitHubProvider(applicationSecret, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
   }
 }

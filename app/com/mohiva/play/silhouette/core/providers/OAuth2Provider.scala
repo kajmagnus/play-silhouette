@@ -67,11 +67,10 @@ object OAuth2Info {
 /**
  * Base class for all OAuth2 providers.
  *
- * @param cacheLayer The cache layer implementation.
  * @param httpLayer The HTTP layer implementation.
  * @param settings The provider settings.
  */
-abstract class OAuth2Provider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings)
+abstract class OAuth2Provider(val applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings)
     extends SocialProvider[OAuth2Info]
     with Logger {
 
@@ -96,11 +95,11 @@ abstract class OAuth2Provider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, sett
       case None => request.queryString.get(Code).flatMap(_.headOption) match {
         // We're being redirected back from the authorization server with the access code
         case Some(code) =>
-          val state = StateSigner.checkSignedState(settings.applicationSecret, requestState.get)
+          val state = StateSigner.checkSignedState(applicationSecret, requestState.get)
           getAccessToken(code).map(oauth2Info => Right((oauth2Info, state)))
         // There's no code in the request, this is the first step in the OAuth flow
         case None =>
-          val signedState = StateSigner.signState(settings.applicationSecret, state = state)
+          val signedState = StateSigner.signState(applicationSecret, state = state)
           val params = settings.scope.foldLeft(List(
             (ClientID, settings.clientID),
             (RedirectURI, settings.redirectURL),
@@ -221,7 +220,6 @@ object OAuth2Provider {
  * @param customProperties A map of custom properties for the different providers.
  */
 case class OAuth2Settings(
-  applicationSecret: String,
   authorizationURL: String,
   accessTokenURL: String,
   redirectURL: String,

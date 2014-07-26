@@ -31,7 +31,7 @@ import GoogleProvider._
 /**
  * A Google OAuth2 Provider.
  *
- * @param cacheLayer The cache layer implementation.
+ * @param applicationSecret The value of your Play app's application.secret config value
  * @param httpLayer The HTTP layer implementation.
  * @param settings The provider settings.
  *
@@ -40,8 +40,8 @@ import GoogleProvider._
  * @see https://developers.google.com/accounts/docs/OAuth2Login
  * @see https://developers.google.com/+/api/latest/people
  */
-abstract class GoogleProvider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings)
-    extends OAuth2Provider(cacheLayer, httpLayer, settings) {
+abstract class GoogleProvider(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings)
+    extends OAuth2Provider(applicationSecret, httpLayer, settings) {
 
   /**
    * Gets the provider ID.
@@ -127,12 +127,12 @@ object GoogleProvider {
   /**
    * Creates an instance of the provider.
    *
-   * @param cacheLayer The cache layer implementation.
+   * @param applicationSecret The value of your Play app's application.secret config value
    * @param httpLayer The HTTP layer implementation.
    * @param settings The provider settings.
    * @return An instance of this provider.
    */
-  def apply(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
-    new GoogleProvider(cacheLayer, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
+  def apply(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
+    new GoogleProvider(applicationSecret, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
   }
 }

@@ -34,7 +34,7 @@ import OAuth2Provider._
 /**
  * A Facebook OAuth2 Provider.
  *
- * @param cacheLayer The cache layer implementation.
+ * @param applicationSecret The value of your Play app's application.secret config value
  * @param httpLayer The HTTP layer implementation.
  * @param settings The provider settings.
  *
@@ -42,8 +42,8 @@ import OAuth2Provider._
  * @see https://developers.facebook.com/docs/graph-api/reference/user
  * @see https://developers.facebook.com/docs/facebook-login/access-tokens
  */
-abstract class FacebookProvider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings)
-    extends OAuth2Provider(cacheLayer, httpLayer, settings) {
+abstract class FacebookProvider(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings)
+    extends OAuth2Provider(applicationSecret, httpLayer, settings) {
 
   /**
    * Gets the provider ID.
@@ -139,12 +139,12 @@ object FacebookProvider {
   /**
    * Creates an instance of the provider.
    *
-   * @param cacheLayer The cache layer implementation.
+   * @param applicationSecret The value of your Play app's application.secret config value
    * @param httpLayer The HTTP layer implementation.
    * @param settings The provider settings.
    * @return An instance of this provider.
    */
-  def apply(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
-    new FacebookProvider(cacheLayer, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
+  def apply(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
+    new FacebookProvider(applicationSecret, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
   }
 }

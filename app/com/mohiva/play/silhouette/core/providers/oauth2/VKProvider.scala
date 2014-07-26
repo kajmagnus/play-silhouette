@@ -31,7 +31,7 @@ import VKProvider._
 /**
  * A Vk OAuth 2 provider.
  *
- * @param cacheLayer The cache layer implementation.
+ * @param applicationSecret The value of your Play app's application.secret config value
  * @param httpLayer The HTTP layer implementation.
  * @param settings The provider settings.
  *
@@ -39,8 +39,8 @@ import VKProvider._
  * @see http://vk.com/dev/api_requests
  * @see http://vk.com/pages.php?o=-1&p=getProfiles
  */
-abstract class VKProvider(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings)
-    extends OAuth2Provider(cacheLayer, httpLayer, settings) {
+abstract class VKProvider(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings)
+    extends OAuth2Provider(applicationSecret, httpLayer, settings) {
 
   /**
    * Gets the provider ID.
@@ -116,12 +116,12 @@ object VKProvider {
   /**
    * Creates an instance of the provider.
    *
-   * @param cacheLayer The cache layer implementation.
+   * @param applicationSecret The value of your Play app's application.secret config value
    * @param httpLayer The HTTP layer implementation.
    * @param settings The provider settings.
    * @return An instance of this provider.
    */
-  def apply(cacheLayer: CacheLayer, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
-    new VKProvider(cacheLayer, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
+  def apply(applicationSecret: String, httpLayer: HTTPLayer, settings: OAuth2Settings) = {
+    new VKProvider(applicationSecret, httpLayer, settings) with CommonSocialProfileBuilder[OAuth2Info]
   }
 }
